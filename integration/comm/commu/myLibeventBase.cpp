@@ -10,7 +10,6 @@ Logger MyLibeventTcpBase::logger = Logger::getInstance("myLibeventBase");
 
 
 MyLibeventTcpBase::MyLibeventTcpBase():rootBase_(NULL),
-    fd_info_(NULL),
     captity_(0),
     timeout_(0),
     stop_(0)
@@ -26,11 +25,23 @@ MyLibeventTcpBase::MyLibeventTcpBase():rootBase_(NULL),
 
 MyLibeventTcpBase::~MyLibeventTcpBase()
 {
+    SocketInfoBase* base = NULL;
     if(rootBase_ != NULL)
     {
         event_base_loopexit(rootBase_, NULL);
         event_base_free(rootBase_);
     }
+
+    //循环删除，iter需要指向下一个位置，否则找不到
+    hash_map<int, SocketInfoBase*>::iterator iter;
+    for(iter = fd_info_.begin(); iter!= fd_info_.end(); iter++)
+    {
+        base = iter->second;
+        base = NULL;
+        fd_info_.erase(iter++);
+    }
+
+    fd_info_.clear();
 }
 
 int MyLibeventTcpBase::init(int captity, int timeout)
@@ -76,57 +87,69 @@ int MyLibeventTcpBase::add_event(int fd,
 }
 */
 
- /*
-void MyLibeventTcpBase::accept_conn_cb(struct evconnlistener *listener,
+
+void MyLibeventTcpBase::conn_cb(struct evconnlistener *listener,
                                        evutil_socket_t fd,
                                        struct sockaddr *addr,
                                        int len,
                                        void *ptr)
 {
 
+    LOG4CPLUS_DEBUG(logger, "conn_cb start. fd:" << fd);
     MyLibeventTcpBase *me = static_cast<MyLibeventTcpBase*>(ptr);
     SocketInfo * info = NULL;
-    info->fd = fd;
-    info->
-    SocketInfoTCP *tmp = new SocketInfoTCP(fd, 0);
-    me->add_event(tmp, )
+    info->_fd = fd;
 
 }
-*/
 
-/*
-void MyLibeventTcpBase::accept_conn_error_cb(struct evconnlistener *listener, void *ptr)
+
+
+void MyLibeventTcpBase::conn_error_cb(struct evconnlistener *listener, void *ptr)
 {
 
-    MyLibeventTcpBase *me = static_cast<MyLibeventTcpUdpBase*>(ptr);
+    MyLibeventTcpBase *me = static_cast<MyLibeventTcpBase*>(ptr);
 
     int err = EVUTIL_SOCKET_ERROR();
     LOG4CPLUS_ERROR(logger, "libevent create listen error:" << err);
 
 }
-*/
+
 
 int MyLibeventTcpBase::add_event(SocketInfoBase *sockinfo, short types)
 {
+    LOG4CPLUS_DEBUG(logger, "mylibeventTcpBase add_event() start.fd= " << sockinfo->getSocketInfo()._fd);
     CallBackBase *cbBase = NULL;
-    SocketInfo *info = NULL;
-    int fd = sockinfo->getSocketInfo()->_fd;
+    SocketInfo info;
+    int fd = sockinfo->getSocketInfo()._fd;
     hash_map<int, SocketInfoBase*>::iterator iter;
-    iter = fd_info_->find(fd);
-    if (iter != fd_info_->end())
+    iter = fd_info_.find(fd);
+    if (iter != fd_info_.end())
     {
-        LOG4CPLUS_ERROR(logger, "mylibevntTcpBase add_event() error: socket fd existed");
+        LOG4CPLUS_ERROR(logger, "mylibeventTcpBase add_event() error: socket fd existed");
         return -1;
     }
 
     if (sockinfo->getSocketTypes() == SOCKET_TYPES_TCP)
     {
+        LOG4CPLUS_DEBUG(logger, "add_event() tcp start ");
         SocketInfoTCP *sockTcpInfo = static_cast<SocketInfoTCP*>(sockinfo);
         evutil_make_socket_nonblocking(fd);
         if (sockTcpInfo->getIsListener())
         {
+            LOG4CPLUS_DEBUG(logger, "evconnlistener_new() start.");
+            struct evconnlistener *rootListen_ = evconnlistener_new(rootBase_,
+                                                                    conn_cb,
+                                                                    (void*)this,
+                                                                    LEV_OPT_REUSEABLE|LEV_OPT_CLOSE_ON_FREE,
+                                                                    -1,
+                                                                    fd);
 
-
+            if(!rootListen_)
+            {
+                LOG4CPLUS_ERROR(logger, "evconnlistener_new() error.");
+                evconnlistener_set_error_cb(rootListen_, conn_error_cb);
+                return -1;
+            }
 
         }
         else
@@ -134,17 +157,18 @@ int MyLibeventTcpBase::add_event(SocketInfoBase *sockinfo, short types)
             struct bufferevent *bev = bufferevent_socket_new(rootBase_, fd, BEV_OPT_CLOSE_ON_FREE);
             cbBase = CallbackFactory::createCallback(EPOLL_CALLBACK_TCP);
 
-//            bufferevent_setcb(bev, cbBase->cb_read_, cbBase->cb_write_, cbBase->cb_error_, NULL);
-            bufferevent_setcb(bev, NULL, NULL, NULL, NULL);
+            //bufferevent_setcb(bev, cbBase->cb_read_, cbBase->cb_write_, cbBase->cb_error_, NULL);
             bufferevent_enable(bev, types);
-            info->_socket_evbuffer = bev;
+            info._socket_evbuffer = bev;
         }
+        LOG4CPLUS_DEBUG(logger, "mylibeventTcpBase add_event() insert hash map start");
         struct event* ev = event_new(rootBase_, fd, types, NULL, NULL);
         event_add(ev, NULL);
-        info->_socket_event = ev;
+        info._socket_event = ev;
         sockTcpInfo->setSocketInfo(info);
         SocketInfoBase* infoBase = static_cast<SocketInfoBase*>(sockTcpInfo);
-        fd_info_->insert(pair<int, SocketInfoBase*>(fd, infoBase));
+        fd_info_.insert(pair<int, SocketInfoBase*>(fd, infoBase));
+        LOG4CPLUS_DEBUG(logger, "mylibevntTcpBase add_event() insert hash map end");
     }
     else
     {
@@ -158,19 +182,19 @@ int MyLibeventTcpBase::add_event(SocketInfoBase *sockinfo, short types)
 
 int MyLibeventTcpBase::delete_event(SocketInfoBase *sockinfo)
 {
-    int fd = sockinfo->getSocketInfo()->_fd;
+    int fd = sockinfo->getSocketInfo()._fd;
     hash_map<int, SocketInfoBase*>::iterator iter;
-    iter = fd_info_->find(fd);
-    if (iter == fd_info_->end())
+    iter = fd_info_.find(fd);
+    if (iter == fd_info_.end())
     {
         LOG4CPLUS_ERROR(logger, "mylibevntTcpBase delete_event() error: socket fd not existed");
         return -1;
     }
-    struct event* ev = iter->second->getSocketInfo()->_socket_event;
+    struct event* ev = iter->second->getSocketInfo()._socket_event;
     int ret = event_del(ev);
     if (ret == 0)
     {
-        fd_info_->erase(iter);
+        fd_info_.erase(iter);
     }
     else
     {

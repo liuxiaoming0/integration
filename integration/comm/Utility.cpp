@@ -36,7 +36,7 @@ int Utility::set_socket_noblock(int fd, bool block)
     return 0;
 }
 
-SocketInfo* Utility::createSocket(SOCKET_TYPES type)
+SocketInfo Utility::createSocket(SOCKET_TYPES type)
 {
     int fd = 0;
     switch(type)
@@ -50,21 +50,17 @@ SocketInfo* Utility::createSocket(SOCKET_TYPES type)
     default:
         break;
     }
-    if (fd != 0)
-    {
-
-        SocketInfo *info = NULL;
-        info->_fd = fd;
-        return info;
-    }
-    else
+    if (fd == 0)
     {
         LOG4CPLUS_ERROR(logger, "utility createSocket create failed.");
-        return NULL;
     }
+
+    SocketInfo info;
+    info._fd = fd;
+    return info;
 }
 
-SocketInfo* Utility::createConnSocket(int port)
+SocketInfo Utility::createConnSocket(int port)
 {
     struct sockaddr_in addr;
     int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -75,17 +71,14 @@ SocketInfo* Utility::createConnSocket(int port)
 
     bind(fd, (sockaddr*)&addr, sizeof(addr));
 
-    if (fd != 0)
-    {
-        SocketInfo *info = NULL;
-        info->_fd = fd;
-        info->_port = port;
-        return info;
-    }
-    else
+    if (fd == 0)
     {
         LOG4CPLUS_ERROR(logger, "utility createConnSocket create failed.");
-        return NULL;
     }
 
+    SocketInfo info;
+    info._fd = fd;
+    info._port = port;
+    LOG4CPLUS_ERROR(logger, "utility createConnSocket fd:" << fd);
+    return info;
 }

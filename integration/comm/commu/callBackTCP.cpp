@@ -23,15 +23,15 @@ Logger CallbackTcp::logger = Logger::getInstance("callbackTCP");
 
 void CallbackTcp::on_readable(void*)
 {
-    LOG4CPLUS_ERROR(logger, "CallbackTcp::on_readable");
+    LOG4CPLUS_DEBUG(logger, "CallbackTcp::on_readable");
 }
 
 void CallbackTcp::on_writable(void*)
 {
-    LOG4CPLUS_ERROR(logger, "CallbackTcp::on_writable");
+    LOG4CPLUS_DEBUG(logger, "CallbackTcp::on_writable");
 }
 
 void CallbackTcp::on_error(void*)
 {
-    LOG4CPLUS_ERROR(logger, "CallbackTcp::on_error");
+    LOG4CPLUS_DEBUG(logger, "CallbackTcp::on_error");
 }

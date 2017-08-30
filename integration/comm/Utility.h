@@ -41,9 +41,9 @@ class Utility{
 public:
     static int set_socket_noblock(int fd, bool block);
 
-    static SocketInfo* createSocket(SOCKET_TYPES type);
+    static SocketInfo createSocket(SOCKET_TYPES type);
 
-    static SocketInfo* createConnSocket(int port);
+    static SocketInfo createConnSocket(int port);
 
 private:
     Utility(){}

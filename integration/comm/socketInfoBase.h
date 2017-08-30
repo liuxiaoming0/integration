@@ -51,25 +51,31 @@ class SocketInfoBase
 public:
     explicit SocketInfoBase(int fd)
     {
-        socketinfo_->_fd = fd;
+        socketinfo_._fd = fd;
     }
 
-    virtual ~SocketInfoBase(){}
+    virtual ~SocketInfoBase()
+    {
+        delete socketinfo_._socket_event;
+        socketinfo_._socket_event = NULL;
+        delete socketinfo_._socket_evbuffer;
+        socketinfo_._socket_evbuffer = NULL;
+    }
 
     virtual SOCKET_TYPES getSocketTypes() = 0;
 
-    inline void setSocketInfo(SocketInfo * socketinfo)
+    inline void setSocketInfo(SocketInfo socketinfo)
     {
         socketinfo_ = socketinfo;
     }
 
-    inline SocketInfo* getSocketInfo()
+    inline SocketInfo getSocketInfo()
     {
         return  socketinfo_;
     }
 
 protected:
-    SocketInfo *socketinfo_;
+    SocketInfo socketinfo_;
 private:
 
 };

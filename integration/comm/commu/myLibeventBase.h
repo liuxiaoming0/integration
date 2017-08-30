@@ -57,12 +57,12 @@ public:
 private:
     int free();
 
-    /*static void accept_conn_cb(struct evconnlistener *listener,
+    static void conn_cb(struct evconnlistener *listener,
                                evutil_socket_t fd,
                                struct sockaddr *addr,
                                int len,
                                void *ptr);
-    static void accept_conn_error_cb(struct evconnlistener *listener, void *ptr);*/
+    static void conn_error_cb(struct evconnlistener *listener, void *ptr);
 
 private:
     /*
@@ -75,7 +75,7 @@ private:
     */
     event_base                      *rootBase_;
     static  Logger                  logger;
-    hash_map<int, SocketInfoBase*>  *fd_info_;
+    hash_map<int, SocketInfoBase*>  fd_info_;
     int                             captity_;
     int                             timeout_;
     int                             stop_;

@@ -68,7 +68,7 @@ private:
     epoll_event     *ev_;
     int             timeout_;   //manager管理移除很久没有事件的fd
     bool            isStop_;
-    hash_map<int, SocketInfoBase*> *fd_info_;
+    hash_map<int, SocketInfoBase*> fd_info_;
 
 };
 

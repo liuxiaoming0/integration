@@ -16,6 +16,7 @@
 #include "comm/socketInfoBase.h"
 #include "comm/Utility.h"
 #include "comm/epollProxy.h"
+#include <boost/shared_ptr.hpp>
 
 using namespace log4cplus;
 using namespace comm;
@@ -48,21 +49,21 @@ void testSafeData()
 
 void testEpoll()
 {
-    SocketInfo* info = NULL;
+    SocketInfo info;
     info = Utility::createConnSocket(8900);//createCcreateSocket(SOCKET_TYPES_TCP);
-    Utility::set_socket_noblock(info->_fd, true);
-    SocketInfoTCP* infoTcp = new SocketInfoTCP(info->_fd, true);
-    EpollProxy * root = new EpollProxy(LIBEVENT_TCP_PROXY);
-    root->add_event(infoTcp, EPOLLIN||EPOLLOUT||EPOLLERR||EPOLLET);
+    LOG4CPLUS_DEBUG(logger, "fd:" << info._fd);
+    Utility::set_socket_noblock(info._fd, true);
+    SocketInfoTCP* infoTcp = new SocketInfoTCP(info._fd, true);
+    boost::shared_ptr<EpollProxy> root(new EpollProxy(/*INTER_EPOLL*/LIBEVENT_TCP_PROXY));
     root->init(10000, 3600);
+    root->add_event(infoTcp, EPOLLIN||EPOLLOUT||EPOLLERR||EPOLLET);
     root->wait_time();
-
 }
 
 int main()
 {
     PropertyConfigurator::doConfigure(LOG4CPLUS_TEXT(PATH_CONFIG));
-
+    LOG4CPLUS_DEBUG(logger, "integration start....");
     //testSafeData();
     testEpoll();
 

@@ -1,12 +1,20 @@
 #include "epollProxy.h"
+#include <cstring>
 
 using namespace comm;
 using namespace comm::commu;
 
 Logger EpollProxy::logger = Logger::getInstance("epollProxy");
 
-EpollProxy::EpollProxy(EPOLL_TYPES type):type_(type),root_(NULL),active_num_(0)
+EpollProxy::EpollProxy(EPOLL_TYPES type):type_(type),active_num_(0)
 {
+    root_ = new EPOLL_ROOT;
+    if (!root_)
+    {
+        LOG4CPLUS_ERROR(logger, "Epollproxy() error");
+        return;
+    }
+
     switch (type) {
 
     case INTER_EPOLL:
@@ -26,14 +34,14 @@ EpollProxy::EpollProxy(EPOLL_TYPES type):type_(type),root_(NULL),active_num_(0)
         break;
     }
 
-    pthread_mutex_init(lock_, NULL);
+    //pthread_mutex_init(lock_, 0);
 }
 
 EpollProxy::~EpollProxy()
 {
     delete root_;
     root_ = NULL;
-    pthread_mutex_destroy(lock_);
+    //pthread_mutex_destroy(lock_);
 }
 
 int EpollProxy::init(int captity, int timeout)
@@ -69,6 +77,7 @@ int EpollProxy::add_event(SocketInfoBase *socketinfo, short types)
         ret = root_->_root_epoll->add_event(socketinfo, types);
         break;
     case LIBEVENT_TCP_PROXY:
+        LOG4CPLUS_DEBUG(logger, "Epollproxy() libevent add_event");
         ret = root_->_root_libevent_tcp->add_event(socketinfo, types);
         break;
     case LIBEVENT_UDP_PROXY:
@@ -83,6 +92,7 @@ int EpollProxy::add_event(SocketInfoBase *socketinfo, short types)
         break;
     }
 
+    /*
     if(ret == 0)
     {
         pthread_mutex_lock(lock_);
@@ -90,7 +100,7 @@ int EpollProxy::add_event(SocketInfoBase *socketinfo, short types)
         pthread_mutex_unlock(lock_);
         return 0;
     }
-
+    */
     return -1;
 }
 
@@ -116,13 +126,14 @@ int EpollProxy::delete_event(SocketInfoBase *socketinfo)
         return -1;
         break;
     }
-
+    /*
     if (ret == 0)
     {
         pthread_mutex_lock(lock_);
         active_num_ --;
         pthread_mutex_unlock(lock_);
     }
+    */
 
     return -1;
 }

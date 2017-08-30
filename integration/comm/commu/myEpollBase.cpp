@@ -18,8 +18,7 @@ MyEpollBase::MyEpollBase():capacity_(0),
     root_epoll_(0),
     ev_(NULL),
     timeout_(0),
-    isStop_(0),
-    fd_info_(NULL)
+    isStop_(0)
 
 {
 
@@ -27,10 +26,21 @@ MyEpollBase::MyEpollBase():capacity_(0),
 
 MyEpollBase::~MyEpollBase()
 {
+    SocketInfoBase *base = NULL;
     if (root_epoll_)
     {
         ::close(root_epoll_);
     }
+    //循环删除，iter需要指向下一个位置，否则找不到
+    hash_map<int, SocketInfoBase*>::iterator iter;
+    for(iter = fd_info_.begin(); iter!= fd_info_.end(); iter++)
+    {
+        base = iter->second;
+        base = NULL;
+        fd_info_.erase(iter++);
+    }
+
+    fd_info_.clear();
 }
 
 int MyEpollBase::init(int capacity, int timeout)
@@ -58,12 +68,12 @@ int MyEpollBase::setStop(bool stop)
 
 int MyEpollBase::add_event(SocketInfoBase *socketinfo, short types)
 {
-    int fd  = socketinfo->getSocketInfo()->_fd;
+    int fd  = socketinfo->getSocketInfo()._fd;
     hash_map<int, SocketInfoBase*>::iterator iter;
-    iter = fd_info_->find(fd);
-    if (iter != fd_info_->end())
+    iter = fd_info_.find(fd);
+    if (iter != fd_info_.end())
     {
-        fd_info_->insert(pair<int, SocketInfoBase*>(fd, socketinfo));
+        fd_info_.insert(pair<int, SocketInfoBase*>(fd, socketinfo));
     }
     else
     {
@@ -76,17 +86,17 @@ int MyEpollBase::add_event(SocketInfoBase *socketinfo, short types)
 
 int MyEpollBase::delete_event(SocketInfoBase *socketinfo)
 {
-    int fd  = socketinfo->getSocketInfo()->_fd;
+    int fd  = socketinfo->getSocketInfo()._fd;
     hash_map<int, SocketInfoBase*>::iterator iter;
-    iter = fd_info_->find(fd);
-    if (iter != fd_info_->end())
+    iter = fd_info_.find(fd);
+    if (iter != fd_info_.end())
     {
         LOG4CPLUS_ERROR(logger, "myEpollBase delete_event failed. fd not in epoll");
         return -1;
     }
     else
     {
-        fd_info_->erase(iter);
+        fd_info_.erase(iter);
     }
     return ctrl_event(EPOLL_CTL_DEL, socketinfo, 0);
 }
@@ -99,7 +109,7 @@ int MyEpollBase::mod_event(SocketInfoBase *socketinfo, short types)
 int MyEpollBase::ctrl_event(int op, SocketInfoBase *socketinfo, short types)
 {
     struct epoll_event ev;
-    int fd = socketinfo->getSocketInfo()->_fd;
+    int fd = socketinfo->getSocketInfo()._fd;
     ev.data.fd = fd;
     ev.events = types;
     int ret = epoll_ctl(root_epoll_, op, fd, &ev);
@@ -114,7 +124,7 @@ int MyEpollBase::ctrl_event(int op, SocketInfoBase *socketinfo, short types)
 void MyEpollBase::wait_time()
 {
     int fd = 0;
-    SocketInfoBase* socket_info;
+    SocketInfoBase *socket_info;
     while(!isStop_)
     {
         int nfds = epoll_wait(root_epoll_, ev_, capacity_, -1);
@@ -136,8 +146,8 @@ void MyEpollBase::wait_time()
             {
                 fd = ev_[i].data.fd;
                 hash_map<int, SocketInfoBase*>::iterator iter;
-                iter = fd_info_->find(fd);
-                if (iter == fd_info_->end())
+                iter = fd_info_.find(fd);
+                if (iter == fd_info_.end())
                 {
                     LOG4CPLUS_ERROR(logger, "time_wait() error:fd not find.");
                     continue;
